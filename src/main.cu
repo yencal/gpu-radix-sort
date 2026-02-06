@@ -13,7 +13,7 @@
 // ============================================================================
 
 template<typename SortAlgorithm>
-void RunSortBenchmark(const char* name, uint32_t n, float peak_bandwidth) {
+void RunSortBenchmark(const char* name, uint32_t n) {
     std::cout << "\n----------------------------------------" << std::endl;
     std::cout << name << std::endl;
 
@@ -62,14 +62,8 @@ void RunSortBenchmark(const char* name, uint32_t n, float peak_bandwidth) {
     CHECK_CUDA(cudaEventElapsedTime(&ms, start, stop));
     float avg_ms = ms / NUM_ITERATIONS;
 
-    // Bandwidth: 2N reads + 2N writes per pass × 4 passes = 16N
-    size_t bytes = 16ULL * n * sizeof(uint32_t);
-    float bandwidth = (bytes / 1e9) / (avg_ms / 1000.0f);
-    float efficiency = 100.0f * bandwidth / peak_bandwidth;
-
     std::cout << "  Time: " << avg_ms << " ms" << std::endl;
     std::cout << "  Throughput: " << (n / 1e6) / (avg_ms / 1000.0f) << " Mkeys/s" << std::endl;
-    std::cout << "  Bandwidth: " << bandwidth << " GB/s (" << efficiency << "% peak)" << std::endl;
 
     CHECK_CUDA(cudaEventDestroy(start));
     CHECK_CUDA(cudaEventDestroy(stop));
@@ -111,15 +105,15 @@ int main(int argc, char** argv)
     // RadixSortMultikernel
     // ========================================================================
 
-    RunSortBenchmark<RadixSortMultikernel<256, 8>>(
-        "RadixSortMultikernel (256 threads, 8 items)", n, peak_bandwidth);
+    RunSortBenchmark<RadixSortMultikernel<8, 256, 8>>(
+        "RadixSortMultikernel (8 RADIX_LOG, 256 threads, 8 items)", n);
 
     // ========================================================================
     // CUB DeviceRadixSort
     // ========================================================================
 
     RunSortBenchmark<RadixSortCUB>(
-        "CUB DeviceRadixSort", n, peak_bandwidth);
+        "CUB DeviceRadixSort", n);
 
     std::cout << "\n========================================" << std::endl;
     std::cout << "Benchmark complete" << std::endl;

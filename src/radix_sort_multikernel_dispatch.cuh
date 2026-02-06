@@ -46,7 +46,6 @@ struct RadixSortMultikernel {
             std::swap(d_src, d_dst);
         }
 
-        // After 4 passes (even), result is in d_input
         // Copy to d_output if needed
         if (d_src != d_output) {
             CHECK_CUDA(cudaMemcpy(d_output, d_src, n * sizeof(uint32_t), 
