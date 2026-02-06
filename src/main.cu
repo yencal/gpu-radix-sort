@@ -39,6 +39,7 @@ void RunSortBenchmark(const char* name, uint32_t n) {
     CHECK_CUDA(cudaMemcpy(h_output, d_output, n * sizeof(uint32_t), cudaMemcpyDeviceToHost));
     if (!VerifySorted(h_output, n)) {
         std::cerr << "  FAILED: Output not sorted!" << std::endl;
+        std::exit(EXIT_FAILURE);
     } else {
         std::cout << "  Correctness: PASSED" << std::endl;
     }
