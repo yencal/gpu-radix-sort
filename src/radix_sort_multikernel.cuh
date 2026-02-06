@@ -186,10 +186,12 @@ __global__ void Downsweep(
     uint8_t digits[ITEMS_PER_THREAD];
     uint16_t warp_offsets[ITEMS_PER_THREAD];
 
+    constexpr int ITEMS_PER_WARP = 32 * ITEMS_PER_THREAD;  // 32 * 8 = 256
+    const uint32_t warp_start = block_offset + warp_idx * ITEMS_PER_WARP;
+
     #pragma unroll
     for (int i = 0; i < ITEMS_PER_THREAD; ++i) {
-        uint32_t idx = block_offset + threadIdx.x + i * BLOCK_THREADS;
-        // Load key or sentinel (0xFFFFFFFF sorts last, won't be stored)
+        uint32_t idx = warp_start + lane_idx + i * 32;  // WARP-CONTIGUOUS
         keys[i] = (idx < num_keys) ? input[idx] : 0xFFFFFFFF;
         digits[i] = (keys[i] >> radix_shift) & RADIX_MASK;
     }

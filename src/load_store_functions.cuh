@@ -1,5 +1,8 @@
 #pragma once
 
+// Note only scalar loads and stores for now.
+// Until code is producing correct result then I will vectorize
+
 template< 
     typename T,
     typename VectorT,
