@@ -34,8 +34,10 @@ void RunSortBenchmark(const char* name, uint32_t n) {
     SortAlgorithm::Run(d_input, d_output, n, d_temp);
     CHECK_CUDA(cudaDeviceSynchronize());
 
-    // Verify correctness
-    if (!VerifySorted(d_output, n)) {
+    // Verify correctness (fail fast)
+    uint32_t* h_output = new uint32_t[n];
+    CHECK_CUDA(cudaMemcpy(h_output, d_output, n * sizeof(uint32_t), cudaMemcpyDeviceToHost));
+    if (!VerifySorted(h_output, n)) {
         std::cerr << "  FAILED: Output not sorted!" << std::endl;
     } else {
         std::cout << "  Correctness: PASSED" << std::endl;
@@ -70,6 +72,7 @@ void RunSortBenchmark(const char* name, uint32_t n) {
     CHECK_CUDA(cudaFree(d_input));
     CHECK_CUDA(cudaFree(d_output));
     CHECK_CUDA(cudaFree(d_temp));
+    delete[] h_output;
 }
 
 // ============================================================================

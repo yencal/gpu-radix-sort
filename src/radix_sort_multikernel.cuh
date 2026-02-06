@@ -125,7 +125,7 @@ __global__ void Scan(
             g_global_hist, items, smem, RADIX);
         __syncthreads();
 
-        BlockExclusiveScan<BLOCK_THREADS, ITEMS_PER_THREAD>(items, 0, &s_block_total);
+        BlockExclusiveScan<uint32_t, BLOCK_THREADS, ITEMS_PER_THREAD>(items, 0, &s_block_total);
         __syncthreads();
 
         StoreBlockedToStriped<uint32_t, uint2, BLOCK_THREADS, ITEMS_PER_THREAD>(
