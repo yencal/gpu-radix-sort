@@ -1,0 +1,11 @@
+# Build artifacts
+*.o
+*.exe
+*.out
+
+# Data / temp files
+*.csv
+*.swp
+
+# macOS
+.DS_Store
