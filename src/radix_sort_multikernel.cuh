@@ -55,7 +55,7 @@ __global__ void Upsweep(
 // Exclusive prefix sum on g_block_hist (per digit) and g_global_hist
 // ============================================================================
 
-template<int BLOCK_THREADS, int ITEMS_PER_THREAD, typename T>
+template<typename T, int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __device__ __forceinline__ void BlockExclusiveScan(
     T (&items)[ITEMS_PER_THREAD],
     T carry,
