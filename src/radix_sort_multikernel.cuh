@@ -122,15 +122,12 @@ __global__ void Scan(
     if (blockIdx.x == 0) {
         __syncthreads();
         
-        LoadStripedToBlocked<uint32_t, uint2, BLOCK_THREADS, ITEMS_PER_THREAD>(
-            g_global_hist, items, smem, RADIX);
-        __syncthreads();
-
-        BlockExclusiveScan<uint32_t, BLOCK_THREADS, ITEMS_PER_THREAD>(items, 0, &s_block_total);
-        __syncthreads();
-
-        StoreBlockedToStriped<uint32_t, uint2, BLOCK_THREADS, ITEMS_PER_THREAD>(
-            g_global_hist, items, smem, RADIX);
+        uint32_t val = (threadIdx.x < RADIX) ? g_global_hist[threadIdx.x] : 0;
+        uint32_t scanned = BlockScanExclusive<BLOCK_THREADS>(val);
+        
+        if (threadIdx.x < RADIX) {
+            g_global_hist[threadIdx.x] = scanned;
+        }
     }
 }
 
