@@ -108,7 +108,7 @@ __global__ void Scan(
             digit_hist + tile_offset, items, smem, valid_items);
         __syncthreads();
 
-        BlockExclusiveScan<BLOCK_THREADS, ITEMS_PER_THREAD>(items, carry, &s_block_total);
+        BlockExclusiveScan<uint32_t, BLOCK_THREADS, ITEMS_PER_THREAD>(items, carry, &s_block_total);
         __syncthreads();
         
         carry = s_block_total;
