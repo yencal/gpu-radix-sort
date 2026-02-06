@@ -186,12 +186,10 @@ __global__ void Downsweep(
     uint8_t digits[ITEMS_PER_THREAD];
     uint16_t warp_offsets[ITEMS_PER_THREAD];
 
-    constexpr int ITEMS_PER_WARP = 32 * ITEMS_PER_THREAD;  // 32 * 8 = 256
-    const uint32_t warp_start = block_offset + warp_idx * ITEMS_PER_WARP;
-
     #pragma unroll
     for (int i = 0; i < ITEMS_PER_THREAD; ++i) {
-        uint32_t idx = warp_start + lane_idx + i * 32;  // WARP-CONTIGUOUS
+        uint32_t idx = block_offset + threadIdx.x + i * BLOCK_THREADS;
+        // Load key or sentinel (0xFFFFFFFF sorts last, won't be stored)
         keys[i] = (idx < num_keys) ? input[idx] : 0xFFFFFFFF;
         digits[i] = (keys[i] >> radix_shift) & RADIX_MASK;
     }
@@ -270,14 +268,20 @@ __global__ void Downsweep(
     __syncthreads();
 
     // === Phase 6: Compute global base with subtraction trick and Scatter to global memory ===
+    // Keys in s_hist_exchange are now in blocked/sorted order (position 0, 1, 2, ...)
+    // Write them sequentially to their global positions
     uint32_t valid_items = min(ITEMS_PER_BLOCK, (int)(num_keys - block_offset));
-    for (int i = threadIdx.x; i < valid_items; i += BLOCK_THREADS) {
-        uint32_t key = s_hist_exchange[i];
-        uint32_t digit = (key >> radix_shift) & RADIX_MASK;
-        uint32_t dst = g_global_hist[digit] 
-                     + g_block_hist[digit * gridDim.x + blockIdx.x]
-                     - smem.digit_start[digit]
-                     + i;
-        output[dst] = key;
+    
+    #pragma unroll
+    for (int i = 0; i < ITEMS_PER_THREAD; ++i) {
+        uint32_t local_idx = threadIdx.x * ITEMS_PER_THREAD + i;
+        if (local_idx < valid_items) {
+            uint32_t key = s_hist_exchange[local_idx];
+            uint32_t digit = (key >> radix_shift) & RADIX_MASK;
+            uint32_t dst = g_global_hist[digit] 
+                         + g_block_hist[digit * gridDim.x + blockIdx.x]
+                         + (local_idx - smem.digit_start[digit]);
+            output[dst] = key;
+        }
     }
 }
