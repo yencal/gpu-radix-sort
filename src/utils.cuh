@@ -146,15 +146,23 @@ __device__ __forceinline__ void StoreStripedVectorized(
 
 template<
     typename T,
+    typename VectorT,
     int BLOCK_THREADS,
     int ITEMS_PER_THREAD>
 __device__ __forceinline__ void StripedToBlocked(
     T (&items)[ITEMS_PER_THREAD],
     T* smem)
 {
+    constexpr int VECTOR_WIDTH = sizeof(VectorT) / sizeof(T);
+    constexpr int VECTORS_PER_THREAD = ITEMS_PER_THREAD / VECTOR_WIDTH;
+
     #pragma unroll
-    for (int i = 0; i < ITEMS_PER_THREAD; i++) {
-        smem[threadIdx.x + i * BLOCK_THREADS] = items[i];
+    for (int v = 0; v < VECTORS_PER_THREAD; v++) {
+        const int smem_idx = (threadIdx.x + v * BLOCK_THREADS) * VECTOR_WIDTH;
+        #pragma unroll
+        for (int i = 0; i < VECTOR_WIDTH; i++) {
+            smem[smem_idx + i] = items[v * VECTOR_WIDTH + i];
+        }
     }
     __syncthreads();
 
@@ -164,14 +172,18 @@ __device__ __forceinline__ void StripedToBlocked(
     }
 }
 
-template<
+template < 
     typename T,
+    typename VectorT,
     int BLOCK_THREADS,
     int ITEMS_PER_THREAD>
 __device__ __forceinline__ void BlockedToStriped(
     T (&items)[ITEMS_PER_THREAD],
     T* smem)
 {
+    constexpr int VECTOR_WIDTH = sizeof(VectorT) / sizeof(T);
+    constexpr int VECTORS_PER_THREAD = ITEMS_PER_THREAD / VECTOR_WIDTH;
+
     #pragma unroll
     for (int i = 0; i < ITEMS_PER_THREAD; i++) {
         smem[threadIdx.x * ITEMS_PER_THREAD + i] = items[i];
@@ -179,8 +191,12 @@ __device__ __forceinline__ void BlockedToStriped(
     __syncthreads();
 
     #pragma unroll
-    for (int i = 0; i < ITEMS_PER_THREAD; i++) {
-        items[i] = smem[threadIdx.x + i * BLOCK_THREADS];
+    for (int v = 0; v < VECTORS_PER_THREAD; v++) {
+        const int smem_idx = (threadIdx.x + v * BLOCK_THREADS) * VECTOR_WIDTH;
+        #pragma unroll
+        for (int i = 0; i < VECTOR_WIDTH; i++) {
+            items[v * VECTOR_WIDTH + i] = smem[smem_idx + i];
+        }
     }
 }
 
@@ -197,7 +213,8 @@ __device__ __forceinline__ void LoadStripedToBlocked(
 {
     LoadStripedVectorized<T, VectorT, BLOCK_THREADS, ITEMS_PER_THREAD>(
         block_ptr, items, valid_items);
-    StripedToBlocked<T, BLOCK_THREADS, ITEMS_PER_THREAD>(items, smem);
+    StripedToBlocked<T, VectorT, BLOCK_THREADS, ITEMS_PER_THREAD>(
+        items, smem);
 }
 
 template<
@@ -211,7 +228,8 @@ __device__ __forceinline__ void StoreBlockedToStriped(
     T* smem,
     int valid_items)
 {
-    BlockedToStriped<T, BLOCK_THREADS, ITEMS_PER_THREAD>(items, smem);
+    BlockedToStriped<T, VectorT, BLOCK_THREADS, ITEMS_PER_THREAD>(
+        items, smem);
     StoreStripedVectorized<T, VectorT, BLOCK_THREADS, ITEMS_PER_THREAD>(
         block_ptr, items, valid_items);
 }
