@@ -267,21 +267,23 @@ __global__ void Downsweep(
     }
     __syncthreads();
 
-    // === Phase 6: Compute global base with subtraction trick and Scatter to global memory ===
-    // Keys in s_hist_exchange are now in blocked/sorted order (position 0, 1, 2, ...)
-    // Write them sequentially to their global positions
+    // === Phase 6: Scatter to global memory using subtraction trick ===
     uint32_t valid_items = min(ITEMS_PER_BLOCK, (int)(num_keys - block_offset));
     
-    #pragma unroll
-    for (int i = 0; i < ITEMS_PER_THREAD; ++i) {
-        uint32_t local_idx = threadIdx.x * ITEMS_PER_THREAD + i;
-        if (local_idx < valid_items) {
-            uint32_t key = s_hist_exchange[local_idx];
-            uint32_t digit = (key >> radix_shift) & RADIX_MASK;
-            uint32_t dst = g_global_hist[digit] 
-                         + g_block_hist[digit * gridDim.x + blockIdx.x]
-                         + (local_idx - smem.digit_start[digit]);
-            output[dst] = key;
-        }
+    // Reuse smem to store adjusted base offsets (smem.digit_start currently has cross-digit offsets)
+    if (threadIdx.x < RADIX) {
+        uint32_t digit = threadIdx.x;
+        uint32_t cross_digit_offset = smem.digit_start[digit];  // Read old value before overwriting
+        smem.digit_start[digit] = g_global_hist[digit] 
+                                 + g_block_hist[digit * gridDim.x + blockIdx.x]
+                                 - cross_digit_offset;
+    }
+    __syncthreads();
+    
+    // Scatter: read striped from sorted keys in shared memory
+    for (uint32_t local_idx = threadIdx.x; local_idx < valid_items; local_idx += BLOCK_THREADS) {
+        uint32_t key = s_hist_exchange[local_idx];
+        uint32_t digit = (key >> radix_shift) & RADIX_MASK;
+        output[smem.digit_start[digit] + local_idx] = key;
     }
 }
