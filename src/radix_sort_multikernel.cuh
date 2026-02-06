@@ -2,6 +2,7 @@
 
 #include "utils.cuh"
 #include "scan_primitives.cuh"
+#include "load_store_functions.cuh"
 
 // ============================================================================
 // Kernel 1: Upsweep
