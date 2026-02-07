@@ -1,6 +1,5 @@
 #pragma once
 
-#include "utils.cuh"
 #include "scan_primitives.cuh"
 #include "load_store_functions.cuh"
 
@@ -116,12 +115,11 @@ __global__ void Scan(
 
         StoreBlockedToStriped<uint32_t, uint2, BLOCK_THREADS, ITEMS_PER_THREAD>(
             digit_hist + tile_offset, items, smem, valid_items);
+        __syncthreads();
     }
 
     // Global histogram (block 0 only)
     if (blockIdx.x == 0) {
-        __syncthreads();
-        
         uint32_t val = (threadIdx.x < RADIX) ? g_global_hist[threadIdx.x] : 0;
         uint32_t scanned = BlockScanExclusive<BLOCK_THREADS>(val);
         
